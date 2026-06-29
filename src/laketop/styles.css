@@ -21,6 +21,12 @@ Footer {
     color: $text-color;
 }
 
+TabbedContent {
+    height: 1fr;
+    margin: 0;
+    padding: 0;
+}
+
 #main-container {
     height: 1fr;
     layout: vertical;
@@ -66,6 +72,26 @@ HealthPanel {
 }
 
 HistoryPanel {
+    height: 1fr;
+    background: transparent;
+    border: none;
+}
+
+#schema-panel {
+    border: round $accent-color;
+    background: $panel-bg;
+    padding: 1 2;
+    margin: 1;
+    layout: vertical;
+    height: 100%;
+}
+
+#schema-title {
+    margin-bottom: 1;
+    text-style: bold;
+}
+
+SchemaPanel {
     height: 1fr;
     background: transparent;
     border: none;

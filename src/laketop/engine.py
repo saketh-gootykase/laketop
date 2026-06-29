@@ -1,12 +1,12 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from deltalake import DeltaTable
 from datetime import datetime
 
 class LakeTopEngine:
-    """Core logic to interact with local Delta Lake tables using delta-rs."""
-    def __init__(self, table_path: str):
+    """Core logic to interact with local or remote Delta Lake tables using delta-rs."""
+    def __init__(self, table_path: str, storage_options: Optional[Dict[str, str]] = None):
         self.table_path = table_path
-        self.dt = DeltaTable(table_path)
+        self.dt = DeltaTable(table_path, storage_options=storage_options)
 
     def get_config(self) -> Dict[str, Any]:
         """
@@ -113,3 +113,39 @@ class LakeTopEngine:
             })
             
         return result
+
+    def get_schema(self) -> List[Dict[str, Any]]:
+        """
+        Retrieves the table schema, listing field names, types, nullability,
+        and whether they are partition columns.
+        """
+        try:
+            schema_dict = self.dt.schema().json()
+            fields = schema_dict.get("fields", [])
+            partition_cols = self.dt.metadata().partition_columns
+            
+            result = []
+            for field in fields:
+                name = field.get("name", "N/A")
+                result.append({
+                    "name": name,
+                    "type": field.get("type", "N/A"),
+                    "nullable": field.get("nullable", True),
+                    "partition": name in partition_cols
+                })
+            return result
+        except Exception:
+            return []
+
+    def optimize_compact(self) -> Dict[str, Any]:
+        """
+        Runs compaction on the Delta table to merge small files.
+        
+        Returns:
+            Dict[str, Any] representing compaction metrics.
+        """
+        try:
+            metrics = self.dt.optimize.compact()
+            return metrics
+        except Exception as e:
+            return {"error": str(e)}

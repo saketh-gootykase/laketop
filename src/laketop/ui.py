@@ -1,5 +1,7 @@
+from typing import Dict, Any, List, Optional
+from textual import work
 from textual.app import App, ComposeResult
-from textual.widgets import Header, Footer, Static, DataTable
+from textual.widgets import Header, Footer, Static, DataTable, TabbedContent, TabPane
 from textual.containers import Container, Horizontal, Vertical
 from laketop.engine import LakeTopEngine
 
@@ -131,50 +133,110 @@ class HistoryPanel(DataTable):
             self.add_row("Error", "N/A", "N/A", str(e))
 
 
+class SchemaPanel(DataTable):
+    """Displays table schema details in a DataTable."""
+    def __init__(self, engine: LakeTopEngine, **kwargs):
+        super().__init__(**kwargs)
+        self.engine = engine
+
+    def on_mount(self) -> None:
+        self.cursor_type = "row"
+        self.add_columns("Field Name", "Type", "Nullable", "Partition Key")
+        self.update_content()
+
+    def update_content(self) -> None:
+        self.clear()
+        try:
+            columns = self.engine.get_schema()
+            for col in columns:
+                nullable_str = "[#4e9f3d]Yes[/]" if col["nullable"] else "[#ff8a5c]No[/]"
+                partition_str = "[#00adb5]Yes[/]" if col["partition"] else "[#eeeeee]No[/]"
+                
+                self.add_row(
+                    col["name"],
+                    str(col["type"]),
+                    nullable_str,
+                    partition_str
+                )
+        except Exception as e:
+            self.add_row("Error", str(e), "N/A", "N/A")
+
+
 class LakeTopApp(App):
     """Terminal User Interface dashboard for LakeTop."""
     CSS_PATH = "styles.css"
     BINDINGS = [
         ("q", "exit", "Quit"),
-        ("r", "refresh_dashboard", "Refresh")
+        ("r", "refresh_dashboard", "Refresh"),
+        ("o", "optimize_table", "Optimize/Compact")
     ]
 
-    def __init__(self, table_path: str, **kwargs):
+    def __init__(self, table_path: str, storage_options: Optional[Dict[str, str]] = None, **kwargs):
         super().__init__(**kwargs)
         self.table_path = table_path
-        self.engine = LakeTopEngine(table_path)
+        self.storage_options = storage_options
+        self.engine = LakeTopEngine(table_path, storage_options=storage_options)
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         
-        with Container(id="main-container"):
-            with Horizontal(id="top-row"):
-                yield ConfigPanel(self.engine, id="config-panel")
-                yield HealthPanel(self.engine, id="health-panel")
-            
-            with Vertical(id="bottom-row"):
-                yield Static("[bold #00adb5]Time Travel Ledger (Delta History)[/]", id="ledger-title")
-                yield HistoryPanel(self.engine, id="history-table")
+        with TabbedContent(initial="dashboard-tab"):
+            with TabPane("Dashboard", id="dashboard-tab"):
+                with Container(id="main-container"):
+                    with Horizontal(id="top-row"):
+                        yield ConfigPanel(self.engine, id="config-panel")
+                        yield HealthPanel(self.engine, id="health-panel")
+                    
+                    with Vertical(id="bottom-row"):
+                        yield Static("[bold #00adb5]Time Travel Ledger (Delta History)[/]", id="ledger-title")
+                        yield HistoryPanel(self.engine, id="history-table")
+                        
+            with TabPane("Schema", id="schema-tab"):
+                with Container(id="schema-panel"):
+                    yield Static("[bold #00adb5]Table Schema Details[/]", id="schema-title")
+                    yield SchemaPanel(self.engine, id="schema-table")
                 
         yield Footer()
 
     def action_refresh_dashboard(self) -> None:
         """Reloads metadata and updates all visual panels."""
         try:
-            # Re-read Delta Table transaction log
-            self.engine = LakeTopEngine(self.table_path)
+            self.engine = LakeTopEngine(self.table_path, storage_options=self.storage_options)
             
             config_panel = self.query_one("#config-panel", ConfigPanel)
             health_panel = self.query_one("#health-panel", HealthPanel)
             history_table = self.query_one("#history-table", HistoryPanel)
+            schema_table = self.query_one("#schema-table", SchemaPanel)
             
             config_panel.engine = self.engine
             health_panel.engine = self.engine
             history_table.engine = self.engine
+            schema_table.engine = self.engine
             
             config_panel.update_content()
             health_panel.update_content()
             history_table.update_content()
+            schema_table.update_content()
             self.notify("Dashboard Refreshed")
         except Exception as e:
             self.notify(f"Refresh failed: {str(e)}", severity="error")
+
+    @work(thread=True)
+    def action_optimize_table(self) -> None:
+        """Runs table file compaction in a background thread."""
+        self.notify("Compacting files in background...", title="Optimize Started")
+        
+        metrics = self.engine.optimize_compact()
+        
+        if "error" in metrics:
+            self.notify(f"Compaction failed: {metrics['error']}", severity="error", title="Optimize Error")
+        else:
+            added = metrics.get("numFilesAdded", 0)
+            removed = metrics.get("numFilesRemoved", 0)
+            parts = metrics.get("partitionsOptimized", 0)
+            
+            msg = f"Compacted! Added {added} files, removed {removed} files across {parts} partitions."
+            self.notify(msg, title="Optimize Complete")
+            
+            # Safely refresh UI from the worker thread
+            self.call_from_thread(self.action_refresh_dashboard)
