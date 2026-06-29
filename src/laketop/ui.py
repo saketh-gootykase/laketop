@@ -1,5 +1,5 @@
 from typing import Dict, Any, List, Optional
-from textual import work
+from textual import work, on
 from textual.app import App, ComposeResult
 from textual.widgets import Header, Footer, Static, DataTable, TabbedContent, TabPane
 from textual.containers import Container, Horizontal, Vertical
@@ -240,3 +240,14 @@ class LakeTopApp(App):
             
             # Safely refresh UI from the worker thread
             self.call_from_thread(self.action_refresh_dashboard)
+
+    @on(TabbedContent.TabActivated)
+    def handle_tab_activated(self, event: TabbedContent.TabActivated) -> None:
+        """Triggered when the user switches tabs, forcing a layout update."""
+        active_pane_id = event.tabbed_content.active
+        if active_pane_id == "schema-tab":
+            schema_table = self.query_one("#schema-table", SchemaPanel)
+            schema_table.update_content()
+        elif active_pane_id == "dashboard-tab":
+            history_table = self.query_one("#history-table", HistoryPanel)
+            history_table.update_content()
