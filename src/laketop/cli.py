@@ -6,6 +6,12 @@ app = typer.Typer(
     help="LakeTop - Visual CLI profiler for Delta Lake tables",
     no_args_is_help=True
 )
+@app.callback()
+def main():
+    """
+    LakeTop - Visual CLI profiler for Delta Lake tables.
+    """
+    pass
 
 @app.command()
 def scan(
