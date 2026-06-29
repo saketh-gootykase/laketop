@@ -1,0 +1,84 @@
+/* Color variables for dark high-density theme */
+$primary-color: #00adb5;
+$accent-color: #393e46;
+$bg-color: #1a1c23;
+$panel-bg: #232731;
+$text-color: #eeeeee;
+
+Screen {
+    background: $bg-color;
+    color: $text-color;
+}
+
+Header {
+    background: $accent-color;
+    color: $primary-color;
+    text-style: bold;
+}
+
+Footer {
+    background: $accent-color;
+    color: $text-color;
+}
+
+#main-container {
+    height: 1fr;
+    layout: vertical;
+    margin: 0;
+    padding: 0;
+}
+
+#top-row {
+    height: 50%;
+    layout: horizontal;
+}
+
+ConfigPanel {
+    width: 50%;
+    height: 100%;
+    border: round $accent-color;
+    padding: 1 2;
+    background: $panel-bg;
+    margin: 0 1;
+}
+
+HealthPanel {
+    width: 50%;
+    height: 100%;
+    border: round $accent-color;
+    padding: 1 2;
+    background: $panel-bg;
+    margin: 0 1;
+}
+
+#bottom-row {
+    height: 50%;
+    border: round $accent-color;
+    background: $panel-bg;
+    padding: 1 2;
+    margin: 1;
+    layout: vertical;
+}
+
+#ledger-title {
+    margin-bottom: 1;
+    text-style: bold;
+}
+
+HistoryPanel {
+    height: 1fr;
+    background: transparent;
+    border: none;
+}
+
+DataTable {
+    background: transparent;
+    border: none;
+    height: 100%;
+}
+
+DataTable > .datatable--header {
+    background: $accent-color;
+    color: $primary-color;
+    text-style: bold;
+}
